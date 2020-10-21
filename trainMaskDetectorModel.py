@@ -1,4 +1,3 @@
-# importing the necessary packages
 import os
 import argparse
 import numpy as np
@@ -21,8 +20,6 @@ from tensorflow.keras.models import Model
 from sklearn.model_selection import train_test_split
 from sklearn.metrics import classification_report
 
-
-#parsing arguments
 ap = argparse.ArgumentParser()
 ap.add_argument("-d", "--dataset", required=True,
 	help="path to input dataset")
@@ -33,12 +30,10 @@ ap.add_argument("-m", "--model", type=str,
 	help="path to output face mask detector model")
 args = vars(ap.parse_args())
 
-print("Loading images. ")
 imagePaths = list(paths.list_images(args["dataset"]))
 data = []
 labels = []
 
-# loop over the image paths
 for imagePath in imagePaths:
 	label = imagePath.split(os.path.sep)[-2]
 
@@ -49,11 +44,9 @@ for imagePath in imagePaths:
 	data.append(image)
 	labels.append(label)
 
-# convert the data and labels to NumPy arrays
 data = np.array(data, dtype="float32")
 labels = np.array(labels)
 
-#perform one-hot encoding on the labels
 label = LabelBinarizer()
 labels = label.fit_transform(labels)
 labels = to_categorical(labels)
@@ -61,7 +54,6 @@ labels = to_categorical(labels)
 (trainX, testX, trainY, testY) = train_test_split(data, labels,
 	test_size=0.20, stratify=labels, random_state=42)
 
-# construct the training image generator for data augmentation
 aug = ImageDataGenerator(
 	rotation_range=20,
 	zoom_range=0.15,
@@ -86,19 +78,14 @@ model = Model(inputs=baseModel.input, outputs=headModel)
 for layer in baseModel.layers:
 	layer.trainable = False
 
-# Initialising no of epochs, learning rate and batch size
 INIT_LR = 1e-4
 EPOCHS = 20
 BS = 32
 
-# compile our model
-print("Compiling model.")
 opt = Adam(lr=INIT_LR, decay=INIT_LR / EPOCHS)
 model.compile(loss="binary_crossentropy", optimizer=opt,
 	metrics=["accuracy"])
 
-# train the head of the network
-print("[INFO] training head...")
 H = model.fit(
 	aug.flow(trainX, trainY, batch_size=BS),
 	steps_per_epoch=len(trainX) // BS,
@@ -106,8 +93,6 @@ H = model.fit(
 	validation_steps=len(testX) // BS,
 	epochs=EPOCHS)
 
-#Making predictions
-print("Evaluating network.")
 predictX = model.predict(testX, batch_size=BS)
 
 predictX = np.argmax(predictX, axis=1)
@@ -115,11 +100,8 @@ predictX = np.argmax(predictX, axis=1)
 print(classification_report(testY.argmax(axis=1), predictX,
 	target_names=label.classes_))
 
-#Serialize the model to disk
-print("Saving model. ")
 model.save(args["model"], save_format="h5")
 
-# plot the training loss and accuracy
 N = EPOCHS
 plt.style.use("ggplot")
 plt.figure()

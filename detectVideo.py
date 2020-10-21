@@ -1,14 +1,13 @@
-# import the necessary packages
+import os
+import cv2
+import time
+import imutils
+import argparse
+import numpy as np
 from tensorflow.keras.applications.mobilenet_v2 import preprocess_input
 from tensorflow.keras.preprocessing.image import img_to_array
 from tensorflow.keras.models import load_model
 from imutils.video import VideoStream
-import numpy as np
-import argparse
-import imutils
-import time
-import cv2
-import os
 
 def detect_and_predict_mask(frame, faceNet, maskNet):
 	(h, w) = frame.shape[:2]
@@ -22,7 +21,6 @@ def detect_and_predict_mask(frame, faceNet, maskNet):
 	locs = []
 	preds = []
 
-	# loop over the detections
 	for i in range(0, detections.shape[2]):
 		confidence = detections[0, 0, i, 2]
 
@@ -43,12 +41,11 @@ def detect_and_predict_mask(frame, faceNet, maskNet):
 			faces.append(face)
 			locs.append((startX, startY, endX, endY))
 
-	if len(faces) > 0:
-		preds = maskNet.predict(faces)
+		if len(faces) > 0:
+			preds = maskNet.predict(faces)
+			
+		return (locs, preds)
 
-	return (locs, preds)
-
-# construct the argument parser and parse the arguments
 ap = argparse.ArgumentParser()
 ap.add_argument("-f", "--face", type=str,
 	default="face_detector",
@@ -65,14 +62,11 @@ weightsPath = os.path.sep.join([args["face"],
 	"res10_300x300_ssd_iter_140000.caffemodel"])
 faceNet = cv2.dnn.readNet(prototxtPath, weightsPath)
 
-# load the face mask detector model from disk
 maskNet = load_model(args["model"])
 
-# initialize the video stream and allow the camera sensor to warm up
 vs = VideoStream(src=0).start()
 time.sleep(2.0)
 
-# loop over the frames from the video stream
 while True:
 	frame = vs.read()
 	frame = imutils.resize(frame, width=400)
@@ -80,7 +74,6 @@ while True:
 	(locs, preds) = detect_and_predict_mask(frame, faceNet, maskNet)
 
 	for (box, pred) in zip(locs, preds):
-		# unpack the bounding box and predictions
 		(startX, startY, endX, endY) = box
 		(mask, withoutMask) = pred
 
@@ -94,20 +87,18 @@ while True:
 		else:
 			color = (0,0,255)
 
-		# include the probability in the label
 		label = "{}: {:.2f}%".format(label, max(mask, withoutMask) * 100)
 
 		cv2.putText(frame, label, (startX, startY - 10),
 			cv2.FONT_HERSHEY_SIMPLEX, 0.45, color, 2)
 		cv2.rectangle(frame, (startX, startY), (endX, endY), color, 2)
 
-	# show the output frame
 	cv2.imshow("Frame", frame)
 	key = cv2.waitKey(1) & 0xFF
 
-	# if the `q` key was pressed, break from the loop
 	if key == ord("q"):
 		break
 
 cv2.destroyAllWindows()
 vs.stop()
+
